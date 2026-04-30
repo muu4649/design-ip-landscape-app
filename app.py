@@ -44,39 +44,129 @@ SHAPE_CATEGORIES = [
 
 SCORE_AXES = ["競合の少なさ", "IP先行余地", "素材空白", "市場成長性", "商標余地"]
 
+# フェーズ定義（番号・名前・色・検出キーワード）
+PHASES: list[dict] = [
+    {"num": 1, "en": "SCOPE",    "ja": "スコープ設定",       "color": "#2471A3",
+     "keywords": ["スコープ", "目的", "物品", "カテゴリ", "競合定義"]},
+    {"num": 2, "en": "GATHER",   "ja": "データ収集",          "color": "#1A5276",
+     "keywords": ["J-PlatPat", "CSV", "ダウンロード", "データ収集", "取得"]},
+    {"num": 3, "en": "READ",     "ja": "意匠ランドスケープ",  "color": "#1A5276",
+     "keywords": ["出願人", "ランキング", "年別", "推移", "overview", "timeline", "partial"]},
+    {"num": 4, "en": "CLASSIFY", "ja": "形状タクソノミー",    "color": "#7D6608",
+     "keywords": ["形状分類", "タクソノミー", "classify", "shape"]},
+    {"num": 5, "en": "MATRIX",   "ja": "形状×素材マトリクス", "color": "#B7770D",
+     "keywords": ["マトリクス", "matrix", "素材", "白地図"]},
+    {"num": 6, "en": "SPOT",     "ja": "白地図の特定",        "color": "#B7770D",
+     "keywords": ["白地図", "未充填", "チャンス", "SPOT"]},
+    {"num": 7, "en": "SCORE",    "ja": "5軸スコアリング",     "color": "#6C3483",
+     "keywords": ["スコア", "5軸", "レーダー", "評価"]},
+    {"num": 8, "en": "NAME",     "ja": "商標ランドスケープ",  "color": "#1E8449",
+     "keywords": ["商標", "trademark", "命名", "区分", "Drip"]},
+    {"num": 9, "en": "BUILD",    "ja": "コンセプト具現化",    "color": "#922B21",
+     "keywords": ["スケッチ", "コンセプト", "寸法", "BUILD", "デザイン案"]},
+]
+
+# フェーズごとの次アクション候補（フォールバック用）
+PHASE_NEXT_ACTIONS: dict[int, list[dict]] = {
+    0: [  # 開始前
+        {"label": "Ph1 スコープを設定する",
+         "prompt": "コーヒードリッパーを対象にIPランドスケープ分析を始めます。Ph1 SCOPEとして、分析スコープ・目的・競合定義を整理してください。"},
+        {"label": "J-PlatPatのデータ取得ガイドを見る",
+         "prompt": "Ph2 GATHERとして、J-PlatPatからコーヒードリッパーの意匠データと商標データを取得する手順を教えてください。"},
+    ],
+    1: [
+        {"label": "Ph2 データ収集ガイドへ",
+         "prompt": "Ph2 GATHERとして、J-PlatPatから意匠CSVと意匠画像PDFを取得する具体的な手順を教えてください。"},
+    ],
+    2: [
+        {"label": "Ph3 出願人ランキングを分析",
+         "prompt": "Ph3 READとして、意匠データの出願人ランキングTop15を分析してください。"},
+        {"label": "Ph3 年別出願推移を確認",
+         "prompt": "Ph3 READとして、意匠出願の年別推移グラフを生成してください。"},
+    ],
+    3: [
+        {"label": "Ph3 意匠種別（部分/関連）を確認",
+         "prompt": "部分意匠・関連意匠の割合を分析してください。"},
+        {"label": "Ph4 形状タクソノミーへ進む",
+         "prompt": "Ph4 CLASSIFYとして、データを9形状カテゴリに分類してください。"},
+    ],
+    4: [
+        {"label": "Ph5 形状×素材マトリクスを生成",
+         "prompt": "Ph5 MATRIXとして、形状カテゴリ×素材のマトリクスを生成し白地図を可視化してください。"},
+    ],
+    5: [
+        {"label": "Ph6 白地図候補を整理",
+         "prompt": "Ph6 SPOTとして、マトリクスの白地図（未充填領域）を論点整理してください。どの形状×素材の組合せが最も有望ですか？"},
+        {"label": "Ph7 5軸スコアリングへ進む",
+         "prompt": "Ph7 SCOREとして、上位候補コンセプトを5軸（競合の少なさ・IP先行余地・素材空白・市場成長性・商標余地）でスコアリングしてください。"},
+    ],
+    6: [
+        {"label": "Ph7 スコアリング実行",
+         "prompt": "Ph7 SCOREとして、白地図候補の上位3コンセプトを5軸スコアリングしてレーダーチャートを生成してください。"},
+    ],
+    7: [
+        {"label": "Ph8 商標ランドスケープを分析",
+         "prompt": "Ph8 NAMEとして、区分11・21の商標白地図を分析し、Drip系命名の白地図候補を抽出してください。"},
+    ],
+    8: [
+        {"label": "Ph8 命名提案（Top1コンセプト）",
+         "prompt": "最もスコアの高いコンセプトに対して、商標白地図から3案の命名提案をしてください。"},
+        {"label": "Ph9 デザインスケッチを生成",
+         "prompt": "Ph9 BUILDとして、最優先コンセプトの3Dデザインスケッチ（5面図）を生成してください。"},
+    ],
+    9: [
+        {"label": "分析レポートをまとめる",
+         "prompt": "今回の分析結果を総括してください。スコープ・白地図・採択コンセプト・商標提案を一覧で整理してください。"},
+        {"label": "別コンセプトでスケッチ生成",
+         "prompt": "別の形状・素材の組合せでデザインスケッチを生成してください。"},
+    ],
+}
+
 # ─────────────────────────────────────────────
 # システムプロンプト
 # ─────────────────────────────────────────────
 SYSTEM_PROMPT = """あなたはデザイン意匠IPランドスケープ専門のAIアシスタントです。
-以下の9フェーズフレームワークに従って、ユーザーのコーヒードリッパーや生活雑貨製品の
-意匠・商標分析を全フェーズ支援します。
+以下の9フェーズフレームワークに従って、コーヒードリッパーや生活雑貨製品の
+意匠・商標分析を全フェーズ主体的にリードします。
 
 ## フレームワーク概要
 
-Ph 1 SCOPE   — スコープ設定（物品カテゴリ、分析目的、競合定義）
-Ph 2 GATHER  — データ収集（J-PlatPat CSV・画像PDF取得ガイド）
-Ph 3 READ    — 意匠ランドスケープ（出願人分析・時系列・関連/部分意匠）
+Ph 1 SCOPE    — スコープ設定（物品カテゴリ、分析目的、競合定義）
+Ph 2 GATHER   — データ収集（J-PlatPat CSV・画像PDF取得ガイド）
+Ph 3 READ     — 意匠ランドスケープ（出願人分析・時系列・関連/部分意匠）
 Ph 4 CLASSIFY — 形状タクソノミー（ルールベース形状分類・9カテゴリ）
-Ph 5 MATRIX  — 形状×素材マトリクス（白地図候補の可視化）
-Ph 6 SPOT    — 白地図の特定（未充填領域の論点整理）
-Ph 7 SCORE   — 5軸スコアリング（競合・IP余地・素材・市場・商標の5軸）
-Ph 8 NAME    — 商標ランドスケープ（区分11/21 商標白地図・命名提案）
-Ph 9 BUILD   — コンセプト具現化（設計仕様・3Dスケッチ生成）
+Ph 5 MATRIX   — 形状×素材マトリクス（白地図候補の可視化）
+Ph 6 SPOT     — 白地図の特定（未充填領域の論点整理）
+Ph 7 SCORE    — 5軸スコアリング（競合・IP余地・素材・市場・商標の5軸）
+Ph 8 NAME     — 商標ランドスケープ（区分11/21 商標白地図・命名提案）
+Ph 9 BUILD    — コンセプト具現化（設計仕様・3Dスケッチ生成）
+
+## 行動指針
+- 各フェーズが完了したら、次フェーズへの移行を能動的に提案する
+- ユーザーを待たず、「次はXXXを実行します」と宣言してツールを呼び出す
+- データがない場合でも分析方法・手順を説明してリードする
+- 数値根拠を明示（件数・割合・スコア）
+- 回答は日本語、結論ファースト
 
 ## ツール使用方針
-- ユーザーがデータをアップロードした後、適切なツールを呼び出して分析を実行してください
-- 意匠CSVがあれば analyze_design_patents を活用
-- 商標CSVがあれば analyze_trademarks を活用
+- 意匠CSVがあれば analyze_design_patents を即座に活用
+- 商標CSVがあれば analyze_trademarks を即座に活用
 - 形状×素材マトリクスは generate_shape_matrix で生成
 - スコアリングは score_concepts で5軸レーダーチャートを生成
 - 商標提案は propose_trademarks で実行
 - デザインスケッチは generate_sketch で生成
 
-## 回答スタイル
-- 結論ファースト
-- 数値根拠を明示（件数・割合・スコア）
-- 次のアクションを提示する
-- 日本語で回答
+## 必須出力形式
+回答の末尾に必ず以下のブロックを含めること（UIのボタン生成に使用）：
+
+<next_actions>
+[
+  {"label": "次のアクションのボタンラベル（20文字以内）", "prompt": "ボタンを押したときにAIに送るプロンプト"},
+  {"label": "別の選択肢", "prompt": "対応するプロンプト"}
+]
+</next_actions>
+
+next_actionsには常に2〜3件の具体的な次ステップを含めること。
 """
 
 # ─────────────────────────────────────────────
@@ -1035,6 +1125,37 @@ def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     return None
 
 
+def parse_next_actions(text: str) -> tuple[str, list[dict]]:
+    """
+    レスポンステキストから <next_actions> ブロックを抽出・除去する。
+    Returns: (cleaned_text, actions_list)
+    """
+    pattern = r"<next_actions>\s*(.*?)\s*</next_actions>"
+    match = re.search(pattern, text, re.DOTALL)
+    if not match:
+        return text, []
+    raw_json = match.group(1).strip()
+    cleaned = re.sub(pattern, "", text, flags=re.DOTALL).strip()
+    try:
+        actions = json.loads(raw_json)
+        if isinstance(actions, list):
+            return cleaned, actions
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return cleaned, []
+
+
+def detect_current_phase(messages: list[dict]) -> int:
+    """会話履歴からおおよその現在フェーズを推定する（1-9、不明は0）。"""
+    text = " ".join(
+        m.get("content", "") for m in messages if isinstance(m.get("content"), str)
+    )
+    for phase in reversed(PHASES):
+        if any(kw in text for kw in phase["keywords"]):
+            return phase["num"]
+    return 0
+
+
 def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
     """ツール名と入力をディスパッチして結果をJSON文字列で返す。"""
     try:
@@ -1062,10 +1183,10 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
 # Claude APIアgentic loop
 # ─────────────────────────────────────────────
 
-def run_claude(user_message: str, api_key: str) -> tuple[str, list[dict]]:
+def run_claude(user_message: str, api_key: str) -> tuple[str, list[dict], list[dict]]:
     """
     Claude APIを呼び出し、tool_useが完了するまでループする。
-    Returns: (final_text, charts)  charts = [{"b64": ..., "title": ...}]
+    Returns: (final_text, charts, next_actions)
     """
     client = anthropic.Anthropic(api_key=api_key)
 
@@ -1159,7 +1280,15 @@ def run_claude(user_message: str, api_key: str) -> tuple[str, list[dict]]:
 
         messages.append({"role": "user", "content": tool_results})
 
-    return final_text, charts
+    # next_actions を抽出
+    final_text, next_actions = parse_next_actions(final_text)
+
+    # フォールバック: Claudeが出力しなかった場合は静的候補を使用
+    if not next_actions:
+        current_phase = detect_current_phase(st.session_state.get("messages", []))
+        next_actions = PHASE_NEXT_ACTIONS.get(current_phase, PHASE_NEXT_ACTIONS[0])
+
+    return final_text, charts, next_actions
 
 
 # ─────────────────────────────────────────────
@@ -1176,6 +1305,9 @@ def init_session() -> None:
         "pdf_b64": None,
         "api_key": "",
         "analysis_results": {},
+        "next_actions": [],          # 最新のアクションボタン候補
+        "pending_prompt": None,      # ボタン押下で注入するプロンプト
+        "current_phase": 0,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -1244,24 +1376,22 @@ def sidebar() -> str | None:
 
         st.divider()
 
-        # フレームワーク早見表
-        with st.expander("📋 フレームワーク 9フェーズ", expanded=False):
-            phases = [
-                ("Ph 1", "SCOPE", "スコープ設定"),
-                ("Ph 2", "GATHER", "データ収集"),
-                ("Ph 3", "READ", "意匠ランドスケープ"),
-                ("Ph 4", "CLASSIFY", "形状タクソノミー"),
-                ("Ph 5", "MATRIX", "形状×素材マトリクス"),
-                ("Ph 6", "SPOT", "白地図の特定"),
-                ("Ph 7", "SCORE", "5軸スコアリング"),
-                ("Ph 8", "NAME", "商標ランドスケープ"),
-                ("Ph 9", "BUILD", "コンセプト具現化"),
-            ]
-            for num, en, ja in phases:
+        # フェーズ進捗
+        current_ph = st.session_state.get("current_phase", 0)
+        st.markdown("<small style='color:#778899'>フェーズ進捗</small>", unsafe_allow_html=True)
+        st.progress(current_ph / 9)
+
+        with st.expander("📋 フレームワーク 9フェーズ", expanded=True):
+            for ph in PHASES:
+                done = ph["num"] <= current_ph
+                icon = "✅" if done else "○"
+                color = ph["color"] if done else "#445566"
                 st.markdown(
-                    f"<small style='color:#778899'>{num}</small> "
-                    f"<b style='color:#2471A3'>{en}</b> "
-                    f"<small style='color:#E8EDF2'>{ja}</small>",
+                    f"<div style='margin:2px 0'>"
+                    f"<span style='color:{color}'>{icon} Ph{ph['num']}</span> "
+                    f"<b style='color:{color}'>{ph['en']}</b> "
+                    f"<small style='color:#778899'>{ph['ja']}</small>"
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
 
@@ -1303,6 +1433,145 @@ def render_message(msg: dict) -> None:
             )
 
 
+def _invoke_claude(prompt: str, api_key: str) -> None:
+    """Claudeを呼び出してUIを更新する共通処理。"""
+    user_msg: dict[str, Any] = {"role": "user", "content": prompt, "charts": []}
+    st.session_state["messages"].append(user_msg)
+    render_message(user_msg)
+
+    with st.chat_message("assistant"):
+        with st.spinner("分析中…"):
+            try:
+                response_text, charts, next_actions = run_claude(prompt, api_key)
+            except anthropic.AuthenticationError:
+                st.error("APIキーが無効です。サイドバーで確認してください。")
+                st.session_state["messages"].pop()
+                st.stop()
+            except anthropic.RateLimitError:
+                st.error("レート制限に達しました。しばらく待ってから再試行してください。")
+                st.session_state["messages"].pop()
+                st.stop()
+            except Exception as e:
+                st.error(f"エラー: {e}")
+                st.session_state["messages"].pop()
+                st.stop()
+
+        st.markdown(response_text)
+        for chart in charts:
+            st.image(
+                base64.b64decode(chart["b64"]),
+                caption=chart.get("title", ""),
+                use_container_width=True,
+            )
+
+    assistant_msg: dict[str, Any] = {
+        "role": "assistant",
+        "content": response_text,
+        "charts": charts,
+    }
+    st.session_state["messages"].append(assistant_msg)
+    st.session_state["next_actions"] = next_actions
+    st.session_state["current_phase"] = detect_current_phase(st.session_state["messages"])
+
+
+def _render_setup_checklist(api_key: str) -> None:
+    """初期セットアップ状況チェックリストとスタートボタンを表示する。"""
+    has_key = bool(api_key)
+    has_design = st.session_state.get("design_df") is not None
+    has_tm = st.session_state.get("trademark_df") is not None
+    has_pdf = bool(st.session_state.get("pdf_b64"))
+
+    st.markdown(
+        """
+        <div style="background:#111E2B;border:1px solid #2471A3;border-radius:10px;
+                    padding:20px 24px;margin-bottom:20px">
+        <h3 style="color:#2471A3;margin:0 0 12px 0;font-size:1.1rem">
+            📋 セットアップチェック
+        </h3>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    items = [
+        (has_key,    "APIキー入力済み",      "サイドバーで sk-ant-... を入力"),
+        (has_design, "意匠CSV アップロード済み", "サイドバーから意匠CSVをアップロード"),
+        (has_tm,     "商標CSV アップロード済み", "（任意）商標CSVをアップロード"),
+        (has_pdf,    "意匠PDF アップロード済み", "（任意）意匠画像PDFをアップロード"),
+    ]
+    for ok, label, hint in items:
+        icon = "✅" if ok else "⬜"
+        color = "#E8EDF2" if ok else "#556677"
+        sub = "" if ok else f"<br><small style='color:#445566;margin-left:22px'>{hint}</small>"
+        st.markdown(
+            f"<div style='margin:4px 0;color:{color}'>{icon} {label}{sub}</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    ready = has_key and (has_design or has_tm or has_pdf)
+
+    if ready:
+        st.markdown(
+            "<p style='color:#778899;font-size:0.85rem;margin-bottom:8px'>"
+            "データが揃っています。分析を開始できます。</p>",
+            unsafe_allow_html=True,
+        )
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("▶ 分析をスタート", type="primary", use_container_width=True):
+                st.session_state["pending_prompt"] = (
+                    "コーヒードリッパーのIPランドスケープ分析を開始してください。"
+                    "まずPh1 SCOPEの設定を行い、続けてアップロードされたデータの概要分析（Ph3 READ）を実行してください。"
+                )
+                st.rerun()
+        with col2:
+            if st.button("Ph2 データ取得ガイド", use_container_width=True):
+                st.session_state["pending_prompt"] = (
+                    "Ph2 GATHERとして、J-PlatPatから意匠データと商標データを取得する手順を詳しく教えてください。"
+                )
+                st.rerun()
+    elif not has_key:
+        st.info("まずサイドバーにAnthropicのAPIキーを入力してください。")
+    else:
+        st.markdown(
+            "<p style='color:#778899;font-size:0.85rem'>"
+            "データなしでも分析ガイドを利用できます。</p>",
+            unsafe_allow_html=True,
+        )
+        if st.button("▶ データなしで始める（ガイドモード）", use_container_width=True):
+            st.session_state["pending_prompt"] = (
+                "データはまだありませんが、コーヒードリッパーのIPランドスケープ分析の進め方を"
+                "Ph1〜Ph9のフレームワークに沿ってガイドしてください。"
+                "まずPh1 SCOPEの設定から始めてください。"
+            )
+            st.rerun()
+
+
+def _render_action_buttons(api_key: str) -> None:
+    """次のアクションボタン群を表示する。"""
+    actions: list[dict] = st.session_state.get("next_actions", [])
+    if not actions:
+        return
+
+    st.markdown(
+        "<div style='margin:8px 0 4px 0'>"
+        "<small style='color:#556677'>▼ 次のステップ</small>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns(min(len(actions), 3))
+    for i, action in enumerate(actions[:3]):
+        with cols[i]:
+            label = action.get("label", f"アクション{i+1}")
+            prompt = action.get("prompt", label)
+            if st.button(label, key=f"action_{i}_{len(st.session_state['messages'])}",
+                         use_container_width=True):
+                st.session_state["pending_prompt"] = prompt
+                st.rerun()
+
+
 def main() -> None:
     """メインエントリーポイント。"""
     st.set_page_config(
@@ -1312,7 +1581,6 @@ def main() -> None:
         initial_sidebar_state="expanded",
     )
 
-    # カスタムCSS
     st.markdown(
         """
         <style>
@@ -1323,11 +1591,12 @@ def main() -> None:
         .stChatMessage[data-testid="stChatMessageAssistant"] {
             background-color: #111E2B;
         }
-        .stTextInput > div > div > input {
-            background-color: #1A2633;
-            color: #E8EDF2;
-        }
         code { color: #5DADE2 !important; }
+        div[data-testid="stHorizontalBlock"] > div > div > button {
+            border: 1px solid #2471A3 !important;
+            border-radius: 6px !important;
+            font-size: 0.82rem !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1339,12 +1608,12 @@ def main() -> None:
     # ヘッダー
     st.markdown(
         """
-        <div style="padding:12px 0 4px 0">
-            <h1 style="color:#2471A3;margin:0;font-size:1.6rem">
-                🔬 Design IP Landscape AI Assistant
+        <div style="padding:8px 0 2px 0">
+            <h1 style="color:#2471A3;margin:0;font-size:1.5rem">
+                🔬 Design IP Landscape AI
             </h1>
-            <p style="color:#778899;margin:4px 0 0 0;font-size:0.9rem">
-                意匠・商標のIPランドスケープ分析を9フェーズで全支援 | Powered by Claude
+            <p style="color:#778899;margin:2px 0 0 0;font-size:0.85rem">
+                意匠・商標 IPランドスケープ — 9フェーズ全支援 | Powered by Claude
             </p>
         </div>
         """,
@@ -1352,79 +1621,31 @@ def main() -> None:
     )
     st.divider()
 
-    # ウェルカムメッセージ（初回のみ）
+    # pending_prompt（ボタン押下）があれば即処理
+    pending = st.session_state.pop("pending_prompt", None)
+    if pending and api_key:
+        _invoke_claude(pending, api_key)
+        st.rerun()
+
+    # 初回：セットアップ画面
     if not st.session_state["messages"]:
-        st.markdown(
-            """
-            <div style="background:#1A2633;border-left:4px solid #2471A3;
-                        padding:14px 18px;border-radius:6px;margin-bottom:16px">
-            <b style="color:#2471A3">はじめに</b><br>
-            <span style="color:#E8EDF2">
-            1. サイドバーに <b>APIキー</b> を入力<br>
-            2. 意匠CSV・商標CSV・意匠PDFをアップロード（任意）<br>
-            3. 下のチャット欄から分析を依頼してください
-            </span><br><br>
-            <b style="color:#778899">依頼例:</b><br>
-            <span style="color:#B0BEC5">
-            「コーヒードリッパーの意匠分析を始めてください」<br>
-            「形状×素材マトリクスを生成して」<br>
-            「フラットボトム型チタン素材でコンセプトスコアリングして」<br>
-            「Drip系商標の白地図を分析して、命名提案してほしい」
-            </span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        _render_setup_checklist(api_key)
+    else:
+        # 過去メッセージ表示
+        for msg in st.session_state["messages"]:
+            render_message(msg)
 
-    # 過去メッセージ表示
-    for msg in st.session_state["messages"]:
-        render_message(msg)
+        # 次のアクションボタン
+        _render_action_buttons(api_key)
 
-    # チャット入力
-    prompt = st.chat_input("分析の依頼・質問を入力…")
+    # 自由入力チャット
+    prompt = st.chat_input("自由入力…（または上のボタンで次のステップへ）")
     if prompt:
         if not api_key:
             st.error("APIキーをサイドバーに入力してください。")
             st.stop()
-
-        # ユーザーメッセージを表示・保存
-        user_msg = {"role": "user", "content": prompt, "charts": []}
-        st.session_state["messages"].append(user_msg)
-        render_message(user_msg)
-
-        # Claude呼び出し
-        with st.chat_message("assistant"):
-            with st.spinner("分析中…"):
-                try:
-                    response_text, charts = run_claude(prompt, api_key)
-                except anthropic.AuthenticationError:
-                    st.error("APIキーが無効です。正しいキーを入力してください。")
-                    st.session_state["messages"].pop()
-                    st.stop()
-                except anthropic.RateLimitError:
-                    st.error("レート制限に達しました。しばらく待ってから再試行してください。")
-                    st.session_state["messages"].pop()
-                    st.stop()
-                except Exception as e:
-                    st.error(f"エラーが発生しました: {e}")
-                    st.session_state["messages"].pop()
-                    st.stop()
-
-            st.markdown(response_text)
-            for chart in charts:
-                st.image(
-                    base64.b64decode(chart["b64"]),
-                    caption=chart.get("title", ""),
-                    use_container_width=True,
-                )
-
-        # アシスタントメッセージを保存
-        assistant_msg = {
-            "role": "assistant",
-            "content": response_text,
-            "charts": charts,
-        }
-        st.session_state["messages"].append(assistant_msg)
+        _invoke_claude(prompt, api_key)
+        st.rerun()
 
 
 if __name__ == "__main__":
