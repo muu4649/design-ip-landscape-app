@@ -60,7 +60,7 @@ except ImportError:
 # 定数
 # ──────────────────────────────────────────────────────────
 
-MAX_DESIGNS   = 300   # Gemini 無料ティア RPD を考慮
+MAX_DESIGNS   = 100   # 画像データ量・Gemini RPD を考慮し100件に制限
 N_CLUSTERS    = 8
 PCA_DIM       = 2
 
