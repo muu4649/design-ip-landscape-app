@@ -1,10 +1,12 @@
 [theme]
-base = "dark"
-backgroundColor = "#0F1923"
-secondaryBackgroundColor = "#1A2633"
-primaryColor = "#2471A3"
-textColor = "#E8EDF2"
-font = "sans serif"
+base = "light"
+primaryColor = "#2563EB"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#EFF6FF"
+textColor = "#1E293B"
 
 [server]
-maxUploadSize = 50
+maxUploadSize = 200
+
+[runner]
+fastReruns = true
